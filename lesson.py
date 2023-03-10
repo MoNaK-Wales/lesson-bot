@@ -66,28 +66,30 @@ def changeTime(message):
         return
 
     for i in range(8):                                      #итерация по строкам со временем
-       times = timesRows[i].split(' ')                                                                  #отдельная строка     
-       length = dt.datetime.strptime(times[1], "%H:%M") - dt.datetime.strptime(times[0], "%H:%M")       #время урока
+       times = timesRows[i].split(' ')                                                              #отдельная строка     
+       length = dt.datetime.strptime(times[1], "%H:%M") - dt.datetime.strptime(times[0], "%H:%M")   #время урока
 
-       hoursMinutes = times[1].split(':')                                                               #отдельно время начала и конца
+       hoursMinutes = times[1].split(':')                                                           #отдельно время начала и конца
        timeTable[i+1] = [dt.timedelta(hours=int(hoursMinutes[0]), minutes=int(hoursMinutes[1])), dt.timedelta(minutes=length.seconds//60)]
     bot.send_message(chat, "Изменено") 
 
 
 
-def checkAlerts(bot, chat, zone):
+def checkAlerts(bot, chat, zone):       #проверка, есть ли хоть в одном заданном месте тревога
     global alert
-    while True:
+
+    while True:                         #тревога проверяется постоянно, каждые 7 секунд
         regionInfos = []
         check = lambda x: len(x) != 0
+        
         for id in region_ids:
-            try:
+            try:                        #получение для каждого места списка активных тревог, который пустой, если тревоги нет
                 regionInfos.append(requests.get(sirenAPI+str(id)).json()[0]['activeAlerts'])
             except Exception as e:
                 print(e)
 
-        alert_ids = list(filter(check, regionInfos))
-        if len(alert_ids) != 0 and not alert and dt.datetime.now(zone).hour < 16:
+        alert_ids = list(filter(check, regionInfos))                                #фильтрация пустых списков (мест без тревоги)
+        if len(alert_ids) != 0 and not alert and dt.datetime.now(zone).hour < 16:   #оповещение про тревогу до конца учебы (16:00)
             bot.send_message(chat, "🚨Тревога🚨")
             alert = True
         if len(alert_ids) == 0 and alert:
@@ -95,24 +97,27 @@ def checkAlerts(bot, chat, zone):
             alert = False
         sleep(7)
 
-def mentionAll(bot, chat):
+def mentionAll(bot, chat):              #функция для того, чтобы отметить в тексте всех заданных участников
     text = "Отбой тревоги"
     mes = ""
     for i in range(len(mention)):
         if i < len(text):
-            mes += f"[{text[i]}](tg://user?id={mention[i]})"
-        else:
-            mes += f"[✅](tg://user?id={mention[i]})"
+            mes += f"[{text[i]}](tg://user?id={mention[i]})"    #в каждую букву вставляется ссылка для пинга
+        else:                                                               
+            mes += f"[✅](tg://user?id={mention[i]})"           #если участников больше, чем букв, остальные добавляются в смайлик
     bot.send_message(chat, mes, parse_mode="MarkdownV2")
 
-def getLessonNum(time):
+
+def getLessonNum(time):                                             #функция для получения номера урока
     td = dt.timedelta(hours=time.hour, minutes=time.minute)
     for les in timeTable:
-        if td < timeTable[les][0] and td > timeTable[min(timeTable.keys())][0] - dt.timedelta(minutes=60):
-            return les, timeTable[les][0], timeTable[les][1]
+        #возвращается первый урок (+его время и длина), время конца которого будет больше, чем время сейчас (и за час до первого урока)
+        if td < timeTable[les][0] and td > timeTable[min(timeTable.keys())][0] - (timeTable[min(timeTable.keys())][1]+dt.timedelta(minutes=60)):
+            return les, timeTable[les][0], timeTable[les][1]        #кроме урока еще возвращается время его конца и длина
     return 9, 0, 0
 
-def poll():
+
+def poll():         #запуск бота и обработка некоторых ошибок
     try:
         bot.polling(none_stop=True, interval=0)
     except requests.exceptions.ReadTimeout:
