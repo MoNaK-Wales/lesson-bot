@@ -3,25 +3,10 @@ import threading
 import datetime as dt
 from time import sleep
 import requests
-from tt import tt       #расписание звонков
-from config import *    #расписание с ссылками, учителя, токен бота, список айди для упоминания, чс, айди мест тревог
+from config import *    #расписания, учителя, токен бота, мой айди, список айди для упоминания, чс, айди мест тревог, апи тревог
 
 bot = telebot.TeleBot(botToken)
 
-with open("tt.py", "w") as f:
-    f.write("""import datetime as dt 
-tt = {
-    1 : [dt.timedelta(hours= 9, minutes=40), dt.timedelta(minutes=40)],
-    2 : [dt.timedelta(hours=10, minutes=25), dt.timedelta(minutes=40)],
-    3 : [dt.timedelta(hours=11, minutes=15), dt.timedelta(minutes=40)],
-    4 : [dt.timedelta(hours=12, minutes=00), dt.timedelta(minutes=40)],
-    5 : [dt.timedelta(hours=12, minutes=50), dt.timedelta(minutes=40)],
-    6 : [dt.timedelta(hours=13, minutes=35), dt.timedelta(minutes=40)],
-    7 : [dt.timedelta(hours=14, minutes=20), dt.timedelta(minutes=40)],
-    8 : [dt.timedelta(hours=15, minutes= 5), dt.timedelta(minutes=40)],
-}""")
-
-timeTable = tt
 eightLessonWeekday = [1]                            #день, когда 8 уроков: понедельник
 noLessonsText = "уроков нет"                        #что пишется, когда нет уроков
 alert = False                                       #есть ли тревога
@@ -66,32 +51,29 @@ def getLesson(message):
     else:
         bot.send_message(chat, noLessonsText)
 
-@bot.message_handler(commands=["changeTime"])           #команда для изменения расписания
+@bot.message_handler(commands=["changeTime"])                   #команда для изменения расписания
 def changeTime(message):                                        
     chat = message.chat.id
-    messages = message.text.split("\n")[1:]
+    member = bot.get_chat_member(chat, message.from_user.id)
+    timesRows = message.text.split("\n")[1:]                    #8 строк со временем начала и конца каждого урока после строки команды
 
-    if message.from_user.id != owner_id:
+    #команду может использовать только владелец бота, создатель и администратор. строк со временем должно быть 8
+    if member.user.id != botOwner_id and member.status != "owner" and member.status != "administrator": 
         bot.send_message(chat, "Менять время может только создатель бота")
         return
-    elif len(messages) != 8:
+    elif len(timesRows) != 8:                                                               
         bot.send_message(chat, "Временных промежутков должно быть 8\nПример правильного написания:\n/changeTime\n8:00 9:00\n9:10 10:00\n..")
         return
 
-    with open("tt.py", "r") as f:
-        startLines = f.readlines()[:2]
-    with open("tt.py", "w") as f:
-        f.write(startLines[0])
-        f.write(startLines[1])
+    for i in range(8):                                      #итерация по строкам со временем
+       times = timesRows[i].split(' ')                                                                  #отдельная строка     
+       length = dt.datetime.strptime(times[1], "%H:%M") - dt.datetime.strptime(times[0], "%H:%M")       #время урока
 
-        for i in range(8):
-            end = messages[i].split(' ')[1]
-            length = dt.datetime.strptime(end, "%H:%M") - dt.datetime.strptime(messages[i].split(' ')[0], "%H:%M")
-            f.write(f"    {i+1} : [dt.timedelta(hours={end.split(':')[0]}, minutes={end.split(':')[1]}), dt.timedelta(minutes={length.seconds//60})],\n")
+       hoursMinutes = times[1].split(':')                                                               #отдельно время начала и конца
+       timeTable[i+1] = [dt.timedelta(hours=int(hoursMinutes[0]), minutes=int(hoursMinutes[1])), dt.timedelta(minutes=length.seconds//60)]
+    bot.send_message(chat, "Изменено") 
 
-            timeTable[i+1] = [dt.timedelta(hours=int(end.split(':')[0]), minutes=int(end.split(':')[1])), dt.timedelta(minutes=length.seconds//60)]
-        f.write("}")
-    bot.send_message(chat, "Изменено")
+
 
 def checkAlerts(bot, chat, zone):
     global alert
