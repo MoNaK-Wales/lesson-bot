@@ -41,7 +41,7 @@ def getLesson(message):
     weekday = time.isoweekday()
 
     if not tr.is_alive():                           #запуск проверки тревог, если еще не запущен
-        tr = threading.Thread(target=checkAlerts, kwargs={'bot': bot, 'chat': chat}, name="checking")
+        tr = threading.Thread(target=checkAlerts, kwargs={'bot': bot, 'chat': chat, 'zone': zone}, name="checking")
         tr.start()
 
     if weekday in range(6):                                                             #проверка на будни
@@ -93,21 +93,24 @@ def changeTime(message):
         f.write("}")
     bot.send_message(chat, "Изменено")
 
-def checkAlerts(bot, chat):
+def checkAlerts(bot, chat, zone):
     global alert
     while True:
         regionInfos = []
-        hangUp = 0
+        check = lambda x: len(x) != 0
         for id in region_ids:
             try:
                 regionInfos.append(requests.get(sirenAPI+str(id)).json()[0]['activeAlerts'])
             except Exception as e:
                 print(e)
-        if (len(regionInfos[0]) != 0 or len(regionInfos[1]) != 0 or len(regionInfos[2]) != 0) and not alert:
+
+        alert_ids = list(filter(check, regionInfos))
+        if len(alert_ids) != 0 and not alert and dt.datetime.now(zone).hour < 16:
             bot.send_message(chat, "🚨Тревога🚨")
             alert = True
-        if (len(regionInfos[0]) == 0 and len(regionInfos[1]) == 0 and len(regionInfos[2]) == 0) and alert:
-            bot.send_message(chat, "✅Отбой")
+        if len(alert_ids) == 0 and alert:
+            mentionAll(bot, chat)
+            alert = False
         sleep(7)
 
 def mentionAll(bot, chat):
