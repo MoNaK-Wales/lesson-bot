@@ -59,7 +59,7 @@ def changeTime(message):
 
     #команду может использовать только владелец бота, создатель и администратор. строк со временем должно быть 8
     if member.user.id != botOwner_id and member.status != "owner" and member.status != "administrator": 
-        bot.send_message(chat, "Менять время может только создатель бота")
+        bot.send_message(chat, "Менять время могут только администраторы")
         return
     elif len(timesRows) != 8:                                                               
         bot.send_message(chat, "Временных промежутков должно быть 8\nПример правильного написания:\n/changeTime\n8:00 9:00\n9:10 10:00\n..")
@@ -88,8 +88,8 @@ def checkAlerts(bot, chat, zone):       #проверка, есть ли хот�
             except Exception as e:
                 print(e)
 
-        alert_ids = list(filter(check, regionInfos))                                #фильтрация пустых списков (мест без тревоги)
-        if len(alert_ids) != 0 and not alert and dt.datetime.now(zone).hour < 16:   #оповещение про тревогу до конца учебы (16:00)
+        alert_ids = list(filter(check, regionInfos))                                        #фильтрация пустых списков (мест без тревоги)
+        if len(alert_ids) != 0 and not alert and dt.datetime.now(zone) < timeTable[8][0]:   #оповещение про тревогу до конца учебы
             bot.send_message(chat, "🚨Тревога🚨")
             alert = True
         if len(alert_ids) == 0 and alert:
