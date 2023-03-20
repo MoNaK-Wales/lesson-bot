@@ -114,7 +114,7 @@ def getLessonNum(time):                                             #функц�
     td = dt.timedelta(hours=time.hour, minutes=time.minute)
     for les in timeTable:
         #возвращается первый урок (+его время и длина), время конца которого будет больше, чем время сейчас (и за час до первого урока)
-        if td < timeTable[les][0] and td > timeTable[min(timeTable.keys())][0] - (timeTable[0][1]+dt.timedelta(minutes=60)):
+        if td < timeTable[les][0] and td > timeTable[min(timeTable.keys())][0] - (timeTable[1][1]+dt.timedelta(minutes=60)):
             return les, timeTable[les][0], timeTable[les][1]        #кроме урока еще возвращается время его конца и длина
     return 9, 0, 0
 
