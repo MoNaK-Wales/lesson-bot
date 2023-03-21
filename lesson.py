@@ -58,7 +58,7 @@ def changeTime(message):
     timesRows = message.text.split("\n")[1:]                    #8 строк со временем начала и конца каждого урока после строки команды
 
     #команду может использовать только владелец бота, создатель и администратор. строк со временем должно быть 8
-    if member.user.id != botOwner_id and member.status != "owner" and member.status != "administrator": 
+    if member.user.id != botOwner_id and member.status != "creator" and member.status != "administrator": 
         bot.send_message(chat, "Менять время могут только администраторы")
         return
     elif len(timesRows) != 8:                                                               
