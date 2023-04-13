@@ -17,11 +17,15 @@ def getLesson(message):
     global tr
     chat = message.chat.id
 
+    if chat != chatMain_id and message.from_user.id != botOwner_id:                     #чтобы ссылки не попали в плохие руки
+        bot.send_message(chat, "Бота можно использовать только в школьной группе")
+        return
+
     if message.from_user.id in blackList:           #чс для плохих людей
         bot.send_message(chat, "пошёл в жопу")
         return
 
-    zone = dt.timezone(dt.timedelta(hours=2))       #получение времени по Киеву
+    zone = dt.timezone(dt.timedelta(hours=3))       #получение времени по Киеву
     time = dt.datetime.now(zone)
     weekday = time.isoweekday()
 
@@ -127,5 +131,8 @@ def poll():         #запуск бота и обработка некотор�
         poll()
     except requests.exceptions.ProxyError:
         print("proxy")
+        poll()
+    except requests.exceptions.ConnectionError:
+        print("connection")
         poll()
 poll()
