@@ -1,19 +1,20 @@
-import telebot
+from pyrogram import Client, filters, enums
 import threading
 import datetime as dt
+import pytz
 from time import sleep
 import requests
-from config import *    #расписания, учителя, токен бота, мой айди, список айди для упоминания, чс, айди мест тревог, апи тревог
+from config import *    #расписания, учителя, токен бота + айди и хеш, мой айди, список айди для упоминания, айди мест тревог, апи тревог
 
-bot = telebot.TeleBot(botToken)
+bot = Client("bot", api_id, api_hash, bot_token=botToken)
 
 eightLessonWeekday = [1]                            #день, когда 8 уроков: понедельник
 noLessonsText = "уроков нет"                        #что пишется, когда нет уроков
-alert = False                                       #есть ли тревога
+alert = True                                       #есть ли тревога
 tr = threading.Thread()                             #поток для параллельной проверки тревог
 
-@bot.message_handler(commands=["lesson"])               #основная команда
-def getLesson(message):                                   
+@bot.on_message(filters.command(["lesson"]))               #основная команда
+def getLesson(client, message):                                   
     global tr
     chat = message.chat.id
 
@@ -21,11 +22,7 @@ def getLesson(message):
         bot.send_message(chat, "Бота можно использовать только в школьной группе")
         return
 
-    if message.from_user.id in blackList:           #чс для плохих людей
-        bot.send_message(chat, "пошёл в жопу")
-        return
-
-    zone = dt.timezone(dt.timedelta(hours=3))       #получение времени по Киеву
+    zone = pytz.timezone('Europe/Kyiv')       #получение времени по Киеву
     time = dt.datetime.now(zone)
     weekday = time.isoweekday()
 
@@ -41,7 +38,7 @@ def getLesson(message):
         elif lesson > 0:                                                                #урок
             mes = ""
 
-            if alert: mes += "🚨Тревога!🚨"                                            #есть ли тревога
+            if alert: mes += "🚨Тревога!🚨\n"                                          #есть ли тревога
             mes += str(lesson) + ". "                                                   #номер урока
             mes += shedule[weekday][lesson] + "\n"                                      #сам урок
 
@@ -55,10 +52,10 @@ def getLesson(message):
     else:
         bot.send_message(chat, noLessonsText)
 
-@bot.message_handler(commands=["changeTime"])                   #команда для изменения расписания
-def changeTime(message):                                        
+@bot.on_message(filters.command(["changeTime"]))                #команда для изменения расписания
+def changeTime(client, message):                                        
     chat = message.chat.id
-    member = bot.get_chat_member(chat, message.from_user.id)
+    member = bot.get_chat_member(chat, message.from_user.id)    
     timesRows = message.text.split("\n")[1:]                    #8 строк со временем начала и конца каждого урока после строки команды
 
     #команду может использовать только владелец бота, создатель и администратор. строк со временем должно быть 8
@@ -104,14 +101,17 @@ def checkAlerts(bot, chat, zone):       #проверка, есть ли хот�
         sleep(7)
 
 def mentionAll(bot, chat):              #функция для того, чтобы отметить в тексте всех заданных участников
-    text = "Отбой тревоги"
+    mention = list((i.user.id for i in bot.get_chat_members(chat)))     #запись айди каждого участника
+    text = "Отбой тревоги✅"
     mes = ""
     for i in range(len(mention)):
         if i < len(text):
             mes += f"[{text[i]}](tg://user?id={mention[i]})"    #в каждую букву вставляется ссылка для пинга
+            if i == len(mention)-1 and len(text) > i:           #если участников меньше, то добавить оставшийся текст
+                mes += text[i+1:]
         else:                                                               
-            mes += f"[✅](tg://user?id={mention[i]})"           #если участников больше, чем букв, остальные добавляются в смайлик
-    bot.send_message(chat, mes, parse_mode="MarkdownV2")
+            mes += f"[​](tg://user?id={mention[i]})"             #если участников больше, чем букв, остальные добавляются в пустой символ
+    bot.send_message(chat, mes, enums.ParseMode.MARKDOWN)
 
 
 def getLessonNum(time):                                             #функция для получения номера урока
@@ -123,16 +123,16 @@ def getLessonNum(time):                                             #функц�
     return 9, 0, 0
 
 
-def poll():         #запуск бота и обработка некоторых ошибок
+def start():         #запуск бота и обработка некоторых ошибок
     try:
-        bot.polling(none_stop=True, interval=0)
+        bot.run()
     except requests.exceptions.ReadTimeout:
         print("timeout")
-        poll()
+        start()
     except requests.exceptions.ProxyError:
         print("proxy")
-        poll()
+        start()
     except requests.exceptions.ConnectionError:
         print("connection")
-        poll()
-poll()
+        start()
+start()
