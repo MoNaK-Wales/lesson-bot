@@ -10,7 +10,7 @@ bot = Client("bot", api_id, api_hash, bot_token=botToken)
 
 eightLessonWeekday = [1]                            #день, когда 8 уроков: понедельник
 noLessonsText = "уроков нет"                        #что пишется, когда нет уроков
-alert = True                                       #есть ли тревога
+alert = False                                       #есть ли тревога
 tr = threading.Thread()                             #поток для параллельной проверки тревог
 
 @bot.on_message(filters.command(["lesson"]))               #основная команда
